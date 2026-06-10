@@ -20,6 +20,13 @@ describe('hexToRgb', () => {
     expect(c.green).toBeCloseTo(0);
     expect(c.blue).toBeCloseTo(128 / 255);
   });
+
+  it('falls back to black for non-hex input instead of producing NaN channels', () => {
+    const c = hexToRgb('nonsense');
+    expect(c.red).toBe(0);
+    expect(c.green).toBe(0);
+    expect(c.blue).toBe(0);
+  });
 });
 
 describe('exportSignedPdf', () => {
@@ -42,5 +49,13 @@ describe('exportSignedPdf', () => {
       { id: '1', page: 5, type: 'text', x: 0, y: 0, width: 10, height: 10, value: 'ghost' },
     ];
     await expect(exportSignedPdf(pdfBytes, items)).resolves.toBeInstanceOf(Uint8Array);
+  });
+
+  it('rejects the whole export when a signature dataURL is garbage (fail-fast)', async () => {
+    const pdfBytes = await makeBlankPdf();
+    const items: PlacedItem[] = [
+      { id: '1', page: 0, type: 'signature', x: 0, y: 0, width: 100, height: 40, value: 'data:image/png;base64,not-a-png' },
+    ];
+    await expect(exportSignedPdf(pdfBytes, items)).rejects.toThrow();
   });
 });

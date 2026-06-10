@@ -18,11 +18,15 @@ export function signedFileName(original: string): string {
 
 /** Browser-only: trigger a download of the given bytes. */
 export function downloadBytes(bytes: Uint8Array, fileName: string): void {
-  const blob = new Blob([bytes as unknown as BlobPart], { type: 'application/pdf' });
+  // pdf-lib returns Uint8Array<ArrayBufferLike>, but BlobPart requires Uint8Array<ArrayBuffer>.
+  const blob = new Blob([bytes as Uint8Array<ArrayBuffer>], { type: 'application/pdf' });
   const url = URL.createObjectURL(blob);
   const a = document.createElement('a');
   a.href = url;
   a.download = fileName;
+  document.body.appendChild(a); // some browsers ignore clicks on detached anchors
   a.click();
-  URL.revokeObjectURL(url);
+  a.remove();
+  // Revoking synchronously has cancelled the download in some browsers; defer a tick.
+  setTimeout(() => URL.revokeObjectURL(url), 0);
 }

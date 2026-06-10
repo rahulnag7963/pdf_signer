@@ -4,7 +4,7 @@ export type EditorAction =
   | { type: 'LOAD_DOC'; fileName: string; pdfBytes: Uint8Array }
   | { type: 'RESET' }
   | { type: 'ADD_ITEM'; item: PlacedItem }
-  | { type: 'UPDATE_ITEM'; id: string; patch: Partial<PlacedItem> }
+  | { type: 'UPDATE_ITEM'; id: string; patch: Partial<Omit<PlacedItem, 'id'>> }
   | { type: 'DELETE_ITEM'; id: string }
   | { type: 'DUPLICATE_ITEM'; id: string; newId: string }
   | { type: 'SELECT_ITEM'; id: string | null }

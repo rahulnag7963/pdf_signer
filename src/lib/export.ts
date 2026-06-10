@@ -1,9 +1,12 @@
-import { PDFDocument, rgb, StandardFonts, type RGB } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, type PDFImage, type RGB } from 'pdf-lib';
 import { toPdfExportRect } from './coords';
 import type { PlacedItem } from './types';
 
+/** Parse a 6-digit hex color into pdf-lib RGB; anything else falls back to black. */
 export function hexToRgb(hex: string): RGB {
+  if (!/^#?[0-9a-fA-F]{6}$/.test(hex)) return rgb(0, 0, 0);
   const n = parseInt(hex.replace('#', ''), 16);
+  if (!Number.isFinite(n)) return rgb(0, 0, 0);
   return rgb(((n >> 16) & 255) / 255, ((n >> 8) & 255) / 255, (n & 255) / 255);
 }
 
@@ -12,6 +15,9 @@ export function hexToRgb(hex: string): RGB {
  * Signatures (and typed signatures, already rasterized to PNG dataURLs at
  * creation time) are embedded as images; text/date items are drawn as
  * vector text in Helvetica.
+ *
+ * An invalid signature dataURL rejects the whole export (fail-fast); the
+ * caller shows an error and editor state is preserved.
  */
 export async function exportSignedPdf(
   pdfBytes: Uint8Array,
@@ -20,6 +26,8 @@ export async function exportSignedPdf(
   const doc = await PDFDocument.load(pdfBytes);
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const pages = doc.getPages();
+  // The same signature placed on multiple pages/items only gets embedded once.
+  const embeddedPngs = new Map<string, PDFImage>();
 
   for (const item of items) {
     const page = pages[item.page];
@@ -28,7 +36,11 @@ export async function exportSignedPdf(
     const rect = toPdfExportRect(item, pageHeight);
 
     if (item.type === 'signature') {
-      const png = await doc.embedPng(item.value);
+      let png = embeddedPngs.get(item.value);
+      if (!png) {
+        png = await doc.embedPng(item.value);
+        embeddedPngs.set(item.value, png);
+      }
       page.drawImage(png, rect);
     } else {
       const fontSize = item.fontSize ?? 14;

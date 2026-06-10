@@ -51,6 +51,37 @@ describe('editorReducer', () => {
     expect(s2.selectedId).toBe('b');
   });
 
+  it('preserves selection when deleting a non-selected item', () => {
+    const other: PlacedItem = { ...item, id: 'b' };
+    let s = editorReducer(initialState, { type: 'ADD_ITEM', item });
+    s = editorReducer(s, { type: 'ADD_ITEM', item: other }); // selects 'b'
+    s = editorReducer(s, { type: 'DELETE_ITEM', id: 'a' });
+    expect(s.items).toHaveLength(1);
+    expect(s.selectedId).toBe('b');
+  });
+
+  it('returns the same state when duplicating a missing id', () => {
+    const s1 = editorReducer(initialState, { type: 'ADD_ITEM', item });
+    expect(editorReducer(s1, { type: 'DUPLICATE_ITEM', id: 'nope', newId: 'x' })).toBe(s1);
+  });
+
+  it('clears selection when changing pages', () => {
+    const s1 = editorReducer(initialState, { type: 'ADD_ITEM', item });
+    const s2 = editorReducer(s1, { type: 'SET_PAGE', page: 1 });
+    expect(s2.currentPage).toBe(1);
+    expect(s2.selectedId).toBeNull();
+  });
+
+  it('preserves the current zoom when loading a new document', () => {
+    const zoomed = editorReducer(initialState, { type: 'SET_ZOOM', zoom: 1.5 });
+    const loaded = editorReducer(zoomed, {
+      type: 'LOAD_DOC',
+      fileName: 'b.pdf',
+      pdfBytes: new Uint8Array([1]),
+    });
+    expect(loaded.zoom).toBe(1.5);
+  });
+
   it('clamps zoom between 0.5 and 2', () => {
     expect(editorReducer(initialState, { type: 'SET_ZOOM', zoom: 5 }).zoom).toBe(2);
     expect(editorReducer(initialState, { type: 'SET_ZOOM', zoom: 0.1 }).zoom).toBe(0.5);

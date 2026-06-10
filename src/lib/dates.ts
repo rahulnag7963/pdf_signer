@@ -1,6 +1,6 @@
 import type { DateFormat } from './types';
 
-export const DATE_FORMATS: DateFormat[] = ['MM/DD/YYYY', 'DD/MM/YYYY', 'MMMM D, YYYY'];
+export const DATE_FORMATS = ['MM/DD/YYYY', 'DD/MM/YYYY', 'MMMM D, YYYY'] as const satisfies readonly DateFormat[];
 
 const MONTHS = [
   'January', 'February', 'March', 'April', 'May', 'June',

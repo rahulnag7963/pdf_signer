@@ -943,41 +943,7 @@ These touch canvas/Image APIs that jsdom doesn't implement, so they're verified 
 
 **Step 1: Create `src/lib/rasterize.ts`**
 
-```ts
-/**
- * Render a typed name in a handwriting font onto a canvas and return a PNG
- * dataURL. We rasterize because pdf-lib cannot embed Google web fonts.
- * Must run in the browser after the font has loaded.
- */
-export async function typedSignatureToPng(text: string, cssFontFamily: string): Promise<string> {
-  const fontSpec = `64px ${cssFontFamily}`;
-  await document.fonts.load(fontSpec, text);
-
-  const measure = document.createElement('canvas').getContext('2d')!;
-  measure.font = fontSpec;
-  const textWidth = Math.ceil(measure.measureText(text).width);
-
-  const canvas = document.createElement('canvas');
-  canvas.width = textWidth + 40;
-  canvas.height = 120;
-  const ctx = canvas.getContext('2d')!;
-  ctx.font = fontSpec; // canvas resize resets context state
-  ctx.fillStyle = '#1e1b4b';
-  ctx.textBaseline = 'middle';
-  ctx.fillText(text, 20, 60);
-  return canvas.toDataURL('image/png');
-}
-
-/** Natural pixel size of a dataURL image — used to size new signature items proportionally. */
-export function dataUrlImageSize(dataUrl: string): Promise<{ width: number; height: number }> {
-  return new Promise((resolve, reject) => {
-    const img = new Image();
-    img.onload = () => resolve({ width: img.naturalWidth, height: img.naturalHeight });
-    img.onerror = () => reject(new Error('Could not read signature image'));
-    img.src = dataUrl;
-  });
-}
-```
+Implemented with CSS-var resolution and metrics-based sizing — see `src/lib/rasterize.ts`. `typedSignatureToPng` resolves `var(--name)` font families against `<body>` (where next/font defines them) before calling `document.fonts.load`/setting `ctx.font`, and sizes the canvas from `TextMetrics.actualBoundingBox*` so script-font flourishes don't clip. `dataUrlImageSize` reports the natural pixel size of a dataURL image.
 
 **Step 2: Verify it compiles**
 
@@ -1748,6 +1714,8 @@ git commit -m "feat: draggable, resizable item overlay with selection toolbar"
 ---
 
 ### Task 15: Signature modal (draw + type) with localStorage reuse
+
+Note: the modal may keep passing `var(--font-dancing)`-style values to `typedSignatureToPng` — the rasterizer now resolves CSS variables itself.
 
 **Files:**
 - Create: `src/components/SignatureModal.tsx`
