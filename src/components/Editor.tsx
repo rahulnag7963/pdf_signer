@@ -4,6 +4,8 @@ import Link from 'next/link';
 import { useCallback, useReducer, useState } from 'react';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { UploadCard } from '@/components/UploadCard';
+import { PageControls } from '@/components/PageControls';
+import { PdfCanvas } from '@/components/PdfCanvas';
 import { usePdfDocument } from '@/hooks/usePdfDocument';
 import { editorReducer, initialState } from '@/lib/reducer';
 
@@ -47,9 +49,18 @@ export function Editor() {
       ) : !state.pdfBytes || !doc || pages.length === 0 ? (
         <UploadCard onLoad={handleLoad} onError={setError} />
       ) : (
-        <div className="p-6 text-ink-100">
-          PDF loaded: {pages.length} page(s). Editor canvas arrives in the next task.
-        </div>
+        <main className="flex flex-col items-center px-6 pb-12">
+          <PageControls
+            currentPage={state.currentPage}
+            pageCount={pages.length}
+            zoom={state.zoom}
+            onPage={(page) => dispatch({ type: 'SET_PAGE', page })}
+            onZoom={(zoom) => dispatch({ type: 'SET_ZOOM', zoom })}
+          />
+          <div className="relative">
+            <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+          </div>
+        </main>
       )}
     </div>
   );
