@@ -27,12 +27,20 @@ export function UploadCard({ onLoad, onError }: Props) {
         role="button"
         tabIndex={0}
         onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          if (e.key === ' ') e.preventDefault(); // stop page scroll
+          inputRef.current?.click();
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
         }}
-        onDragLeave={() => setDragging(false)}
+        onDragLeave={(e) => {
+          // dragleave fires when entering a child — ignore those.
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+          setDragging(false);
+        }}
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);

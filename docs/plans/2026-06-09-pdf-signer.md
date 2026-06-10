@@ -1132,7 +1132,7 @@ export default function SignPage() {
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 
 export interface PageInfo {
   width: number;
@@ -1150,22 +1150,31 @@ export function usePdfDocument(pdfBytes: Uint8Array | null) {
 
   useEffect(() => {
     let cancelled = false;
-    let loaded: PDFDocumentProxy | null = null;
+    // Holding the loading task (not the proxy) lets cleanup abort a pending
+    // getDocument *and* destroy a completed document with one call.
+    let task: PDFDocumentLoadingTask | null = null;
 
-    if (!pdfBytes) {
+    (async () => {
+      // Clear stale state from any previous document before (re)loading, so a
+      // failed load never leaves a destroyed proxy behind.
       setDoc(null);
       setPages([]);
       setError(null);
-      return;
-    }
+      if (!pdfBytes) return;
 
-    (async () => {
       try {
         const pdfjs = await import('pdfjs-dist');
+        if (cancelled) return;
         pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
         // pdf.js transfers the buffer to its worker — pass a copy so the
         // original bytes stay intact for the pdf-lib export.
-        loaded = await pdfjs.getDocument({ data: pdfBytes.slice() }).promise;
+        task = pdfjs.getDocument({ data: pdfBytes.slice() });
+        if (cancelled) {
+          // Cleanup already ran (before `task` was assigned) — destroy here.
+          void task.destroy();
+          return;
+        }
+        const loaded = await task.promise;
         if (cancelled) return;
         const infos: PageInfo[] = [];
         for (let i = 1; i <= loaded.numPages; i++) {
@@ -1176,10 +1185,10 @@ export function usePdfDocument(pdfBytes: Uint8Array | null) {
         if (!cancelled) {
           setDoc(loaded);
           setPages(infos);
-          setError(null);
         }
       } catch (e) {
         if (cancelled) return;
+        // doc/pages were cleared above and never set on this path.
         const name = (e as { name?: string })?.name;
         setError(
           name === 'PasswordException'
@@ -1191,7 +1200,8 @@ export function usePdfDocument(pdfBytes: Uint8Array | null) {
 
     return () => {
       cancelled = true;
-      loaded?.destroy();
+      // Aborts a pending load and destroys the document if it completed.
+      void task?.destroy();
     };
   }, [pdfBytes]);
 
@@ -1204,16 +1214,26 @@ export function usePdfDocument(pdfBytes: Uint8Array | null) {
 ```tsx
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 
 export function ErrorBanner({ message, onDismiss }: { message: string; onDismiss: () => void }) {
+  // Keep the latest onDismiss in a ref so the timer effect doesn't restart
+  // every time the parent re-renders with a fresh callback identity.
+  const onDismissRef = useRef(onDismiss);
   useEffect(() => {
-    const t = setTimeout(onDismiss, 5000);
+    onDismissRef.current = onDismiss;
+  });
+
+  useEffect(() => {
+    const t = setTimeout(() => onDismissRef.current(), 5000);
     return () => clearTimeout(t);
-  }, [message, onDismiss]);
+  }, [message]);
 
   return (
-    <div className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-full bg-white px-6 py-3 text-sm font-medium text-red-600 shadow-2xl">
+    <div
+      role="alert"
+      className="fixed left-1/2 top-6 z-50 -translate-x-1/2 rounded-full bg-white px-6 py-3 text-sm font-medium text-red-600 shadow-2xl"
+    >
       {message}
       <button onClick={onDismiss} className="ml-4 text-slate-400 hover:text-slate-600" aria-label="Dismiss">
         ✕
@@ -1255,12 +1275,20 @@ export function UploadCard({ onLoad, onError }: Props) {
         role="button"
         tabIndex={0}
         onClick={() => inputRef.current?.click()}
-        onKeyDown={(e) => e.key === 'Enter' && inputRef.current?.click()}
+        onKeyDown={(e) => {
+          if (e.key !== 'Enter' && e.key !== ' ') return;
+          if (e.key === ' ') e.preventDefault(); // stop page scroll
+          inputRef.current?.click();
+        }}
         onDragOver={(e) => {
           e.preventDefault();
           setDragging(true);
         }}
-        onDragLeave={() => setDragging(false)}
+        onDragLeave={(e) => {
+          // dragleave fires when entering a child — ignore those.
+          if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+          setDragging(false);
+        }}
         onDrop={(e) => {
           e.preventDefault();
           setDragging(false);
@@ -1339,7 +1367,11 @@ export function Editor() {
         />
       )}
 
-      {!state.pdfBytes || !doc || pages.length === 0 ? (
+      {state.pdfBytes && !doc && !pdfError ? (
+        <div className="flex min-h-[60vh] items-center justify-center text-ink-100">
+          Opening your PDF…
+        </div>
+      ) : !state.pdfBytes || !doc || pages.length === 0 ? (
         <UploadCard onLoad={handleLoad} onError={setError} />
       ) : (
         <div className="p-6 text-ink-100">
@@ -2156,7 +2188,11 @@ export function Editor() {
         />
       )}
 
-      {!ready ? (
+      {state.pdfBytes && !doc && !pdfError ? (
+        <div className="flex min-h-[60vh] items-center justify-center text-ink-100">
+          Opening your PDF…
+        </div>
+      ) : !ready ? (
         <UploadCard onLoad={handleLoad} onError={setError} />
       ) : (
         <div className="flex">

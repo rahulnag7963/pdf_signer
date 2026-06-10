@@ -23,9 +23,9 @@ export default function Home() {
     <div className="bg-hero min-h-screen text-white">
       {/* Nav */}
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
-        <div className="text-xl font-extrabold tracking-tight">
+        <Link href="/" className="text-xl font-extrabold tracking-tight">
           Ink<span className="text-accent-400">Press</span>
-        </div>
+        </Link>
         <Link
           href="/sign"
           className="btn-glow rounded-full bg-accent-500 px-6 py-2.5 text-sm font-semibold transition hover:bg-accent-400"

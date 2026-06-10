@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import type { PDFDocumentProxy } from 'pdfjs-dist';
+import type { PDFDocumentLoadingTask, PDFDocumentProxy } from 'pdfjs-dist';
 
 export interface PageInfo {
   width: number;
@@ -19,22 +19,31 @@ export function usePdfDocument(pdfBytes: Uint8Array | null) {
 
   useEffect(() => {
     let cancelled = false;
-    let loaded: PDFDocumentProxy | null = null;
+    // Holding the loading task (not the proxy) lets cleanup abort a pending
+    // getDocument *and* destroy a completed document with one call.
+    let task: PDFDocumentLoadingTask | null = null;
 
-    if (!pdfBytes) {
+    (async () => {
+      // Clear stale state from any previous document before (re)loading, so a
+      // failed load never leaves a destroyed proxy behind.
       setDoc(null);
       setPages([]);
       setError(null);
-      return;
-    }
+      if (!pdfBytes) return;
 
-    (async () => {
       try {
         const pdfjs = await import('pdfjs-dist');
+        if (cancelled) return;
         pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
         // pdf.js transfers the buffer to its worker — pass a copy so the
         // original bytes stay intact for the pdf-lib export.
-        loaded = await pdfjs.getDocument({ data: pdfBytes.slice() }).promise;
+        task = pdfjs.getDocument({ data: pdfBytes.slice() });
+        if (cancelled) {
+          // Cleanup already ran (before `task` was assigned) — destroy here.
+          void task.destroy();
+          return;
+        }
+        const loaded = await task.promise;
         if (cancelled) return;
         const infos: PageInfo[] = [];
         for (let i = 1; i <= loaded.numPages; i++) {
@@ -45,10 +54,10 @@ export function usePdfDocument(pdfBytes: Uint8Array | null) {
         if (!cancelled) {
           setDoc(loaded);
           setPages(infos);
-          setError(null);
         }
       } catch (e) {
         if (cancelled) return;
+        // doc/pages were cleared above and never set on this path.
         const name = (e as { name?: string })?.name;
         setError(
           name === 'PasswordException'
@@ -60,7 +69,8 @@ export function usePdfDocument(pdfBytes: Uint8Array | null) {
 
     return () => {
       cancelled = true;
-      loaded?.destroy();
+      // Aborts a pending load and destroys the document if it completed.
+      void task?.destroy();
     };
   }, [pdfBytes]);
 

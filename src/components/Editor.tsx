@@ -40,7 +40,11 @@ export function Editor() {
         />
       )}
 
-      {!state.pdfBytes || !doc || pages.length === 0 ? (
+      {state.pdfBytes && !doc && !pdfError ? (
+        <div className="flex min-h-[60vh] items-center justify-center text-ink-100">
+          Opening your PDF…
+        </div>
+      ) : !state.pdfBytes || !doc || pages.length === 0 ? (
         <UploadCard onLoad={handleLoad} onError={setError} />
       ) : (
         <div className="p-6 text-ink-100">
