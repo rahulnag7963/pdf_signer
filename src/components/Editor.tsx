@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useCallback, useReducer, useState } from 'react';
 import { ErrorBanner } from '@/components/ErrorBanner';
 import { UploadCard } from '@/components/UploadCard';
+import { ItemLayer } from '@/components/ItemLayer';
 import { PageControls } from '@/components/PageControls';
 import { PdfCanvas } from '@/components/PdfCanvas';
 import { usePdfDocument } from '@/hooks/usePdfDocument';
@@ -59,6 +60,13 @@ export function Editor() {
           />
           <div className="relative">
             <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+            <ItemLayer
+              items={state.items}
+              pageIndex={state.currentPage}
+              zoom={state.zoom}
+              selectedId={state.selectedId}
+              dispatch={dispatch}
+            />
           </div>
         </main>
       )}
