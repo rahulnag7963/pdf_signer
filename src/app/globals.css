@@ -1,11 +1,11 @@
 @import "tailwindcss";
+@source not "../../docs";
+
+@theme inline {
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
 
 @theme {
-  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  --font-dancing: var(--font-dancing);
-  --font-great-vibes: var(--font-great-vibes);
-  --font-caveat: var(--font-caveat);
-
   --color-ink-950: #160d3a;
   --color-ink-900: #2d1b69;
   --color-ink-800: #3a2284;

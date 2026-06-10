@@ -45,6 +45,31 @@ npm install pdfjs-dist pdf-lib react-rnd signature_pad
 cp node_modules/pdfjs-dist/build/pdf.worker.min.mjs public/pdf.worker.min.mjs
 ```
 
+**Step 3b: Keep the worker in sync with the installed pdfjs-dist**
+
+A committed worker snapshot desyncs from the caret-ranged `pdfjs-dist` dependency on any bump and breaks PDF rendering at runtime ("API version does not match Worker version"). Sync it from `node_modules` automatically instead.
+
+Add to `package.json` scripts:
+
+```json
+"sync-pdf-worker": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\"",
+"predev": "npm run sync-pdf-worker",
+"prebuild": "npm run sync-pdf-worker"
+```
+
+Then keep the copy out of git (the file stays on disk):
+
+```bash
+git rm --cached public/pdf.worker.min.mjs 2>/dev/null || true
+```
+
+And append to `.gitignore`:
+
+```gitignore
+# pdf.js worker (synced from node_modules by sync-pdf-worker)
+/public/pdf.worker.min.mjs
+```
+
 **Step 4: Verify the app builds**
 
 Run: `npm run build`
@@ -63,6 +88,7 @@ git commit -m "chore: scaffold Next.js 15 app with pdf dependencies"
 
 **Files:**
 - Create: `vitest.config.ts`
+- Create: `vitest.setup.ts`
 - Modify: `package.json` (scripts)
 - Create: `src/lib/__tests__/sanity.test.ts`
 
@@ -83,12 +109,22 @@ export default defineConfig({
   plugins: [react()],
   test: {
     environment: 'jsdom',
-    globals: true,
+    setupFiles: ['./vitest.setup.ts'],
   },
   resolve: {
     alias: { '@': path.resolve(__dirname, 'src') },
   },
 });
+```
+
+**Step 2b: Create `vitest.setup.ts`** (wires jest-dom matchers into Vitest's `expect` and cleans up the DOM between tests)
+
+```ts
+import '@testing-library/jest-dom/vitest';
+import { cleanup } from '@testing-library/react';
+import { afterEach } from 'vitest';
+
+afterEach(cleanup);
 ```
 
 **Step 3: Add scripts to `package.json`**
@@ -118,7 +154,7 @@ Expected: 1 passed.
 **Step 6: Commit**
 
 ```bash
-git add vitest.config.ts package.json package-lock.json src/lib/__tests__/sanity.test.ts
+git add vitest.config.ts vitest.setup.ts package.json package-lock.json src/lib/__tests__/sanity.test.ts
 git commit -m "chore: set up vitest with jsdom"
 ```
 
@@ -168,13 +204,13 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
 
 ```css
 @import "tailwindcss";
+@source not "../../docs";
+
+@theme inline {
+  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
+}
 
 @theme {
-  --font-sans: var(--font-poppins), ui-sans-serif, system-ui, sans-serif;
-  --font-dancing: var(--font-dancing);
-  --font-great-vibes: var(--font-great-vibes);
-  --font-caveat: var(--font-caveat);
-
   --color-ink-950: #160d3a;
   --color-ink-900: #2d1b69;
   --color-ink-800: #3a2284;
