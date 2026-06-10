@@ -1596,7 +1596,11 @@ function ItemContent({
       }`}
     >
       {selected && (
-        <div className="absolute -top-9 left-0 flex gap-1 rounded-full bg-ink-900 px-2 py-1 text-xs shadow-lg">
+        <div
+          className={`absolute left-0 flex gap-1 rounded-full bg-ink-900 px-2 py-1 text-xs shadow-lg ${
+            item.y * zoom < 40 ? '-bottom-9' : '-top-9'
+          }`}
+        >
           <button
             className="px-1.5 text-white hover:text-accent-400"
             title="Duplicate"
