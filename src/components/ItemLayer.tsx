@@ -34,6 +34,7 @@ function ItemContent({
           <button
             className="px-1.5 text-white hover:text-accent-400"
             title="Duplicate"
+            aria-label="Duplicate"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
@@ -45,6 +46,7 @@ function ItemContent({
           <button
             className="px-1.5 text-white hover:text-accent-400"
             title="Delete"
+            aria-label="Delete"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
@@ -62,7 +64,7 @@ function ItemContent({
         <img src={item.value} alt="Signature" className="h-full w-full object-contain" draggable={false} />
       ) : (
         <div
-          className="flex h-full w-full items-center overflow-hidden whitespace-pre px-1"
+          className="flex h-full w-full items-start overflow-hidden whitespace-pre leading-none"
           style={{
             fontSize: (item.fontSize ?? 14) * zoom,
             color: item.color ?? '#1e1b4b',

@@ -1,5 +1,7 @@
 'use client';
 
+import { MIN_ZOOM, MAX_ZOOM } from '@/lib/reducer';
+
 interface Props {
   currentPage: number;
   pageCount: number;
@@ -15,7 +17,12 @@ export function PageControls({ currentPage, pageCount, zoom, onPage, onZoom }: P
   return (
     <div className="flex items-center justify-center gap-6 py-3">
       <div className="flex items-center gap-2">
-        <button className={btn} disabled={currentPage === 0} onClick={() => onPage(currentPage - 1)}>
+        <button
+          className={btn}
+          aria-label="Previous page"
+          disabled={currentPage === 0}
+          onClick={() => onPage(currentPage - 1)}
+        >
           ←
         </button>
         <span className="text-sm text-ink-100">
@@ -23,6 +30,7 @@ export function PageControls({ currentPage, pageCount, zoom, onPage, onZoom }: P
         </span>
         <button
           className={btn}
+          aria-label="Next page"
           disabled={currentPage >= pageCount - 1}
           onClick={() => onPage(currentPage + 1)}
         >
@@ -30,11 +38,21 @@ export function PageControls({ currentPage, pageCount, zoom, onPage, onZoom }: P
         </button>
       </div>
       <div className="flex items-center gap-2">
-        <button className={btn} onClick={() => onZoom(zoom - 0.25)}>
+        <button
+          className={btn}
+          aria-label="Zoom out"
+          disabled={zoom <= MIN_ZOOM}
+          onClick={() => onZoom(zoom - 0.25)}
+        >
           −
         </button>
         <span className="w-12 text-center text-sm text-ink-100">{Math.round(zoom * 100)}%</span>
-        <button className={btn} onClick={() => onZoom(zoom + 0.25)}>
+        <button
+          className={btn}
+          aria-label="Zoom in"
+          disabled={zoom >= MAX_ZOOM}
+          onClick={() => onZoom(zoom + 0.25)}
+        >
           +
         </button>
       </div>

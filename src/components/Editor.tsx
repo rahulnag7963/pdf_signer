@@ -58,15 +58,17 @@ export function Editor() {
             onPage={(page) => dispatch({ type: 'SET_PAGE', page })}
             onZoom={(zoom) => dispatch({ type: 'SET_ZOOM', zoom })}
           />
-          <div className="relative">
-            <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
-            <ItemLayer
-              items={state.items}
-              pageIndex={state.currentPage}
-              zoom={state.zoom}
-              selectedId={state.selectedId}
-              dispatch={dispatch}
-            />
+          <div className="max-w-full overflow-x-auto">
+            <div className="relative w-max">
+              <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+              <ItemLayer
+                items={state.items}
+                pageIndex={state.currentPage}
+                zoom={state.zoom}
+                selectedId={state.selectedId}
+                dispatch={dispatch}
+              />
+            </div>
           </div>
         </main>
       )}

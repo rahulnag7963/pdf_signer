@@ -1430,20 +1430,29 @@ export function PdfCanvas({ doc, pageIndex, zoom }: Props) {
     let task: RenderTask | undefined;
 
     (async () => {
-      const page = await doc.getPage(pageIndex + 1);
-      if (cancelled) return;
-      const canvas = canvasRef.current;
-      if (!canvas) return;
-      const dpr = window.devicePixelRatio || 1;
-      const viewport = page.getViewport({ scale: zoom * dpr });
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = `${viewport.width / dpr}px`;
-      canvas.style.height = `${viewport.height / dpr}px`;
-      task = page.render({ canvasContext: canvas.getContext('2d')!, viewport });
-      await task.promise.catch(() => {
-        /* cancelled mid-render — fine */
-      });
+      try {
+        const page = await doc.getPage(pageIndex + 1);
+        if (cancelled) return;
+        const canvas = canvasRef.current;
+        if (!canvas) return;
+        const dpr = window.devicePixelRatio || 1;
+        const viewport = page.getViewport({ scale: zoom * dpr });
+        canvas.width = viewport.width;
+        canvas.height = viewport.height;
+        canvas.style.width = `${viewport.width / dpr}px`;
+        canvas.style.height = `${viewport.height / dpr}px`;
+        task = page.render({ canvas, viewport });
+        await task.promise;
+      } catch (err) {
+        // Expected teardown paths: render cancelled by cleanup, effect already
+        // cancelled, or the document/transport was destroyed mid-flight.
+        if (cancelled) return;
+        if (err instanceof Error) {
+          if (err.name === 'RenderingCancelledException') return;
+          if (/transport destroyed|worker.*destroyed/i.test(err.message)) return;
+        }
+        console.error('PDF page render failed', err);
+      }
     })();
 
     return () => {
@@ -1517,8 +1526,10 @@ Replace the `<div className="p-6 text-ink-100">…</div>` block with:
     onPage={(page) => dispatch({ type: 'SET_PAGE', page })}
     onZoom={(zoom) => dispatch({ type: 'SET_ZOOM', zoom })}
   />
-  <div className="relative">
-    <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+  <div className="max-w-full overflow-x-auto">
+    <div className="relative w-max">
+      <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+    </div>
   </div>
 </main>
 ```
@@ -1589,6 +1600,7 @@ function ItemContent({
           <button
             className="px-1.5 text-white hover:text-accent-400"
             title="Duplicate"
+            aria-label="Duplicate"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
@@ -1600,6 +1612,7 @@ function ItemContent({
           <button
             className="px-1.5 text-white hover:text-accent-400"
             title="Delete"
+            aria-label="Delete"
             onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
@@ -1617,7 +1630,7 @@ function ItemContent({
         <img src={item.value} alt="Signature" className="h-full w-full object-contain" draggable={false} />
       ) : (
         <div
-          className="flex h-full w-full items-center overflow-hidden whitespace-pre px-1"
+          className="flex h-full w-full items-start overflow-hidden whitespace-pre leading-none"
           style={{
             fontSize: (item.fontSize ?? 14) * zoom,
             color: item.color ?? '#1e1b4b',
@@ -1684,23 +1697,27 @@ export function ItemLayer({ items, pageIndex, zoom, selectedId, dispatch }: Prop
 Replace:
 
 ```tsx
-<div className="relative">
-  <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+<div className="max-w-full overflow-x-auto">
+  <div className="relative w-max">
+    <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+  </div>
 </div>
 ```
 
 with:
 
 ```tsx
-<div className="relative">
-  <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
-  <ItemLayer
-    items={state.items}
-    pageIndex={state.currentPage}
-    zoom={state.zoom}
-    selectedId={state.selectedId}
-    dispatch={dispatch}
-  />
+<div className="max-w-full overflow-x-auto">
+  <div className="relative w-max">
+    <PdfCanvas doc={doc} pageIndex={state.currentPage} zoom={state.zoom} />
+    <ItemLayer
+      items={state.items}
+      pageIndex={state.currentPage}
+      zoom={state.zoom}
+      selectedId={state.selectedId}
+      dispatch={dispatch}
+    />
+  </div>
 </div>
 ```
 
@@ -2220,15 +2237,17 @@ export function Editor() {
               onPage={(p) => dispatch({ type: 'SET_PAGE', page: p })}
               onZoom={(z) => dispatch({ type: 'SET_ZOOM', zoom: z })}
             />
-            <div className="relative">
-              <PdfCanvas doc={doc!} pageIndex={state.currentPage} zoom={state.zoom} />
-              <ItemLayer
-                items={state.items}
-                pageIndex={state.currentPage}
-                zoom={state.zoom}
-                selectedId={state.selectedId}
-                dispatch={dispatch}
-              />
+            <div className="max-w-full overflow-x-auto">
+              <div className="relative w-max">
+                <PdfCanvas doc={doc!} pageIndex={state.currentPage} zoom={state.zoom} />
+                <ItemLayer
+                  items={state.items}
+                  pageIndex={state.currentPage}
+                  zoom={state.zoom}
+                  selectedId={state.selectedId}
+                  dispatch={dispatch}
+                />
+              </div>
             </div>
           </main>
         </div>
