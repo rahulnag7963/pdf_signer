@@ -31,7 +31,17 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
   // which dispatches click on the overlay (the common ancestor). Only close
   // when the press started AND ended on the backdrop itself.
   const pressedBackdrop = useRef(false);
+  // If the modal unmounts (e.g. parent closes it) while typedSignatureToPng is
+  // still awaiting, the pending confirm() must not fire onConfirm afterwards.
+  const unmountedRef = useRef(false);
   const [saved] = useState(loadSignature);
+
+  useEffect(() => {
+    unmountedRef.current = false;
+    return () => {
+      unmountedRef.current = true;
+    };
+  }, []);
 
   useEffect(() => {
     dialogRef.current?.focus();
@@ -39,11 +49,13 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
 
   useEffect(() => {
     const onKeyDown = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      // Ignore Escape while a confirm is in flight so the modal can't unmount
+      // mid-await and still fire onConfirm.
+      if (e.key === 'Escape' && !confirming) onClose();
     };
     window.addEventListener('keydown', onKeyDown);
     return () => window.removeEventListener('keydown', onKeyDown);
-  }, [onClose]);
+  }, [onClose, confirming]);
 
   useEffect(() => {
     if (tab !== 'draw' || !canvasRef.current) return;
@@ -70,6 +82,7 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
         if (!typed.trim()) return;
         dataUrl = await typedSignatureToPng(typed.trim(), fontCss);
       }
+      if (unmountedRef.current) return;
       if (save && !saveFailed && !saveSignature(dataUrl)) {
         setSaveFailed(true);
         return;

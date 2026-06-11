@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import type { EditorAction } from '@/lib/reducer';
 import { DATE_FORMATS, formatDate } from '@/lib/dates';
 import type { DateFormat, PlacedItem } from '@/lib/types';
@@ -16,6 +17,37 @@ interface Props {
 
 const toolBtn =
   'flex w-full items-center gap-3 rounded-2xl bg-white/5 px-4 py-3 text-sm font-semibold transition hover:bg-white/10';
+
+/**
+ * Font-size input with a local draft so intermediate keystrokes aren't
+ * clamped (typing "12" must not turn into 8 → 82 → 72). Valid in-range
+ * values commit immediately; everything else is clamped on blur.
+ * Re-seed by keying this component on the selected item's id.
+ */
+function FontSizeInput({ value, onCommit }: { value: number; onCommit: (n: number) => void }) {
+  const [draft, setDraft] = useState(String(value));
+  return (
+    <input
+      type="number"
+      min={8}
+      max={72}
+      value={draft}
+      onChange={(e) => {
+        setDraft(e.target.value);
+        const n = Number(e.target.value);
+        if (Number.isFinite(n) && n >= 8 && n <= 72) onCommit(n);
+      }}
+      onBlur={() => {
+        const n = Number(draft);
+        const clamped =
+          draft.trim() === '' || !Number.isFinite(n) ? value : Math.min(72, Math.max(8, n));
+        setDraft(String(clamped));
+        onCommit(clamped);
+      }}
+      className="w-16 rounded-lg bg-white/10 px-2 py-1 text-right"
+    />
+  );
+}
 
 export function Sidebar({ selected, dispatch, onAddSignature, onAddText, onAddDate }: Props) {
   return (
@@ -41,22 +73,12 @@ export function Sidebar({ selected, dispatch, onAddSignature, onAddText, onAddDa
 
           <label className="flex items-center justify-between text-sm">
             Size
-            <input
-              type="number"
-              min={8}
-              max={72}
+            <FontSizeInput
+              key={selected.id}
               value={selected.fontSize ?? 14}
-              onChange={(e) => {
-                if (e.target.value === '') return; // let the user keep typing
-                const n = Number(e.target.value);
-                if (!Number.isFinite(n) || n <= 0) return;
-                dispatch({
-                  type: 'UPDATE_ITEM',
-                  id: selected.id,
-                  patch: { fontSize: Math.min(72, Math.max(8, n)) },
-                });
-              }}
-              className="w-16 rounded-lg bg-white/10 px-2 py-1 text-right"
+              onCommit={(fontSize) =>
+                dispatch({ type: 'UPDATE_ITEM', id: selected.id, patch: { fontSize } })
+              }
             />
           </label>
 

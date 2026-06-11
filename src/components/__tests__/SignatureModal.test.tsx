@@ -79,6 +79,27 @@ describe('SignatureModal', () => {
     );
   });
 
+  it('does not close when a press starts inside the dialog and releases on the backdrop', () => {
+    const onClose = vi.fn();
+    render(<SignatureModal onConfirm={vi.fn()} onClose={onClose} />);
+    const dialog = screen.getByRole('dialog');
+    const overlay = dialog.parentElement!;
+    // Pen stroke starts inside the dialog, releases over the backdrop: the
+    // browser dispatches click on the common ancestor (the overlay).
+    fireEvent.pointerDown(dialog);
+    fireEvent.click(overlay);
+    expect(onClose).not.toHaveBeenCalled();
+  });
+
+  it('closes when a press starts and ends on the backdrop', () => {
+    const onClose = vi.fn();
+    render(<SignatureModal onConfirm={vi.fn()} onClose={onClose} />);
+    const overlay = screen.getByRole('dialog').parentElement!;
+    fireEvent.pointerDown(overlay);
+    fireEvent.click(overlay);
+    expect(onClose).toHaveBeenCalledTimes(1);
+  });
+
   it('calls onClose when Escape is pressed', () => {
     const onClose = vi.fn();
     render(<SignatureModal onConfirm={vi.fn()} onClose={onClose} />);
