@@ -46,13 +46,16 @@ export function Sidebar({ selected, dispatch, onAddSignature, onAddText, onAddDa
               min={8}
               max={72}
               value={selected.fontSize ?? 14}
-              onChange={(e) =>
+              onChange={(e) => {
+                if (e.target.value === '') return; // let the user keep typing
+                const n = Number(e.target.value);
+                if (!Number.isFinite(n) || n <= 0) return;
                 dispatch({
                   type: 'UPDATE_ITEM',
                   id: selected.id,
-                  patch: { fontSize: Number(e.target.value) || 14 },
-                })
-              }
+                  patch: { fontSize: Math.min(72, Math.max(8, n)) },
+                });
+              }}
               className="w-16 rounded-lg bg-white/10 px-2 py-1 text-right"
             />
           </label>
@@ -65,7 +68,7 @@ export function Sidebar({ selected, dispatch, onAddSignature, onAddText, onAddDa
                   key={c}
                   aria-label={`Color ${c}`}
                   onClick={() => dispatch({ type: 'UPDATE_ITEM', id: selected.id, patch: { color: c } })}
-                  className={`h-6 w-6 rounded-full border-2 ${
+                  className={`h-6 w-6 rounded-full border-2 ring-1 ring-white/20 ${
                     (selected.color ?? '#1e1b4b') === c ? 'border-accent-400' : 'border-transparent'
                   }`}
                   style={{ backgroundColor: c }}
@@ -90,7 +93,7 @@ export function Sidebar({ selected, dispatch, onAddSignature, onAddText, onAddDa
                 className="rounded-lg bg-white/10 px-2 py-1.5 text-white"
               >
                 {DATE_FORMATS.map((f) => (
-                  <option key={f} value={f} className="text-ink-900">
+                  <option key={f} value={f} className="bg-white text-ink-900">
                     {f}
                   </option>
                 ))}

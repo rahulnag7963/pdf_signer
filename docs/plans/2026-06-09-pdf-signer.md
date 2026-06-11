@@ -1801,9 +1801,28 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
   const [fontCss, setFontCss] = useState(SIGNATURE_FONTS[0].css);
   const [save, setSave] = useState(true);
   const [saveFailed, setSaveFailed] = useState(false);
+  const [confirming, setConfirming] = useState(false);
+  const [confirmError, setConfirmError] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const padRef = useRef<SignaturePad | null>(null);
-  const saved = loadSignature();
+  const dialogRef = useRef<HTMLDivElement>(null);
+  // A pen stroke that starts inside the dialog can release over the backdrop,
+  // which dispatches click on the overlay (the common ancestor). Only close
+  // when the press started AND ended on the backdrop itself.
+  const pressedBackdrop = useRef(false);
+  const [saved] = useState(loadSignature);
+
+  useEffect(() => {
+    dialogRef.current?.focus();
+  }, []);
+
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
 
   useEffect(() => {
     if (tab !== 'draw' || !canvasRef.current) return;
@@ -1812,21 +1831,34 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
     canvas.width = canvas.offsetWidth * dpr;
     canvas.height = canvas.offsetHeight * dpr;
     canvas.getContext('2d')!.scale(dpr, dpr);
-    padRef.current = new SignaturePad(canvas, { penColor: '#1e1b4b' });
-    return () => padRef.current?.off();
+    const pad = new SignaturePad(canvas, { penColor: '#1e1b4b' });
+    padRef.current = pad;
+    return () => pad.off();
   }, [tab]);
 
   async function confirm() {
-    let dataUrl: string;
-    if (tab === 'draw') {
-      if (!padRef.current || padRef.current.isEmpty()) return;
-      dataUrl = padRef.current.toDataURL('image/png');
-    } else {
-      if (!typed.trim()) return;
-      dataUrl = await typedSignatureToPng(typed.trim(), fontCss);
+    if (confirming) return;
+    setConfirming(true);
+    setConfirmError(false);
+    try {
+      let dataUrl: string;
+      if (tab === 'draw') {
+        if (!padRef.current || padRef.current.isEmpty()) return;
+        dataUrl = padRef.current.toDataURL('image/png');
+      } else {
+        if (!typed.trim()) return;
+        dataUrl = await typedSignatureToPng(typed.trim(), fontCss);
+      }
+      if (save && !saveFailed && !saveSignature(dataUrl)) {
+        setSaveFailed(true);
+        return;
+      }
+      onConfirm(dataUrl);
+    } catch {
+      setConfirmError(true);
+    } finally {
+      setConfirming(false);
     }
-    if (save && !saveSignature(dataUrl)) setSaveFailed(true);
-    onConfirm(dataUrl);
   }
 
   const tabBtn = (active: boolean) =>
@@ -1837,13 +1869,24 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-ink-950/70 p-4"
-      onClick={onClose}
+      onPointerDown={(e) => {
+        pressedBackdrop.current = e.target === e.currentTarget;
+      }}
+      onClick={(e) => {
+        if (pressedBackdrop.current && e.target === e.currentTarget) onClose();
+      }}
     >
       <div
-        className="w-full max-w-lg rounded-3xl bg-white p-6 text-ink-900 shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
+        ref={dialogRef}
+        role="dialog"
+        aria-modal="true"
+        aria-labelledby="signature-modal-title"
+        tabIndex={-1}
+        className="w-full max-w-lg rounded-3xl bg-white p-6 text-ink-900 shadow-2xl outline-none"
       >
-        <h2 className="text-xl font-extrabold">Your signature</h2>
+        <h2 id="signature-modal-title" className="text-xl font-extrabold">
+          Your signature
+        </h2>
 
         <div className="mt-4 flex gap-2 rounded-full bg-slate-50 p-1">
           <button className={tabBtn(tab === 'draw')} onClick={() => setTab('draw')}>
@@ -1904,6 +1947,11 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
             Couldn&apos;t save to this browser — the signature will only last this session.
           </p>
         )}
+        {confirmError && (
+          <p className="mt-1 text-xs text-amber-600">
+            Couldn&apos;t create that signature — try again.
+          </p>
+        )}
 
         <div className="mt-6 flex items-center justify-between">
           {saved ? (
@@ -1924,8 +1972,9 @@ export function SignatureModal({ onConfirm, onClose }: Props) {
               Cancel
             </button>
             <button
-              className="btn-glow rounded-full bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-400"
+              className="btn-glow rounded-full bg-accent-500 px-6 py-2.5 text-sm font-semibold text-white hover:bg-accent-400 disabled:opacity-60"
               onClick={() => void confirm()}
+              disabled={confirming}
             >
               Add signature
             </button>
@@ -2149,12 +2198,13 @@ export function Editor() {
   }
 
   async function addSignature(dataUrl: string) {
-    setSignatureModalOpen(false);
+    // Validate before closing so a bad image doesn't throw away the drawing.
     try {
       const size = await dataUrlImageSize(dataUrl);
       const width = 180;
       const height = (size.height / size.width) * width;
       addItem({ type: 'signature', width, height, value: dataUrl });
+      setSignatureModalOpen(false);
     } catch {
       setError("Couldn't read that signature image.");
     }
@@ -2298,6 +2348,8 @@ Expected: all clean. Fix anything that fails before proceeding.
 8. Place items on page 2; navigate away and back — they persist.
 9. Zoom 50%–200% — items stay glued to the same page position.
 10. Download → file named `<name>-signed.pdf`; open in a real PDF viewer (Edge/Acrobat) and confirm every item is exactly where it was placed.
+11. Press Escape closes the signature modal.
+12. A drawing stroke that ends outside the dialog does not close it.
 
 **Step 3: Update README**
 

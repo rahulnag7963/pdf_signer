@@ -45,12 +45,13 @@ export function Editor() {
   }
 
   async function addSignature(dataUrl: string) {
-    setSignatureModalOpen(false);
+    // Validate before closing so a bad image doesn't throw away the drawing.
     try {
       const size = await dataUrlImageSize(dataUrl);
       const width = 180;
       const height = (size.height / size.width) * width;
       addItem({ type: 'signature', width, height, value: dataUrl });
+      setSignatureModalOpen(false);
     } catch {
       setError("Couldn't read that signature image.");
     }
