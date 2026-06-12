@@ -23,7 +23,10 @@ export async function exportSignedPdf(
   pdfBytes: Uint8Array,
   items: PlacedItem[],
 ): Promise<Uint8Array> {
-  const doc = await PDFDocument.load(pdfBytes);
+  // ignoreEncryption: PDFs with owner-password permissions (print/copy
+  // restrictions) render fine in pdf.js but are rejected by pdf-lib's
+  // default load. We never bypass user passwords — those fail at upload.
+  const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const pages = doc.getPages();
   // The same signature placed on multiple pages/items only gets embedded once.

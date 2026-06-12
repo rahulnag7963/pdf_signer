@@ -63,7 +63,8 @@ export function Editor() {
     try {
       const bytes = await exportSignedPdf(state.pdfBytes, state.items);
       downloadBytes(bytes, signedFileName(state.fileName));
-    } catch {
+    } catch (err) {
+      console.error('PDF export failed', err);
       setError("Couldn't export the signed PDF. Your edits are still here — try again.");
     } finally {
       setExporting(false);
