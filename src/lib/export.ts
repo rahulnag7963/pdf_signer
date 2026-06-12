@@ -1,4 +1,4 @@
-import { PDFDocument, rgb, StandardFonts, type PDFImage, type RGB } from 'pdf-lib';
+import { PDFDocument, rgb, StandardFonts, type PDFImage, type RGB } from '@cantoo/pdf-lib';
 import { toPdfExportRect } from './coords';
 import type { PlacedItem } from './types';
 
@@ -23,10 +23,11 @@ export async function exportSignedPdf(
   pdfBytes: Uint8Array,
   items: PlacedItem[],
 ): Promise<Uint8Array> {
-  // ignoreEncryption: PDFs with owner-password permissions (print/copy
-  // restrictions) render fine in pdf.js but are rejected by pdf-lib's
-  // default load. We never bypass user passwords — those fail at upload.
-  const doc = await PDFDocument.load(pdfBytes, { ignoreEncryption: true });
+  // Permission-restricted PDFs (print/copy locks) are encrypted with an empty
+  // user password — supplying it lets @cantoo/pdf-lib decrypt them, and the
+  // saved output is unencrypted. PDFs needing a real open password never get
+  // here; pdf.js rejects them at upload.
+  const doc = await PDFDocument.load(pdfBytes, { password: '' });
   const font = await doc.embedFont(StandardFonts.Helvetica);
   const pages = doc.getPages();
   // The same signature placed on multiple pages/items only gets embedded once.

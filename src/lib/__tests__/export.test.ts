@@ -1,4 +1,4 @@
-import { PDFDocument } from 'pdf-lib';
+import { PDFDocument } from '@cantoo/pdf-lib';
 import { describe, expect, it } from 'vitest';
 import { exportSignedPdf, hexToRgb } from '@/lib/export';
 import type { PlacedItem } from '@/lib/types';
@@ -49,6 +49,23 @@ describe('exportSignedPdf', () => {
       { id: '1', page: 5, type: 'text', x: 0, y: 0, width: 10, height: 10, value: 'ghost' },
     ];
     await expect(exportSignedPdf(pdfBytes, items)).resolves.toBeInstanceOf(Uint8Array);
+  });
+
+  it('exports permission-restricted PDFs (owner password, empty user password)', async () => {
+    // Print/copy-locked PDFs render in pdf.js but are encrypted on disk —
+    // regression test for export failing with "Expected instance of PDFDict".
+    const doc = await PDFDocument.create();
+    doc.addPage([612, 792]);
+    doc.encrypt({ ownerPassword: 'owner-secret' });
+    const encrypted = await doc.save();
+    const items: PlacedItem[] = [
+      { id: '1', page: 0, type: 'signature', x: 72, y: 200, width: 180, height: 60, value: TINY_PNG },
+      { id: '2', page: 0, type: 'date', x: 72, y: 150, width: 120, height: 20, value: '06/11/2026', fontSize: 12 },
+    ];
+    const out = await exportSignedPdf(encrypted, items);
+    const reloaded = await PDFDocument.load(out);
+    expect(reloaded.getPageCount()).toBe(1);
+    expect(reloaded.isEncrypted).toBe(false);
   });
 
   it('rejects the whole export when a signature dataURL is garbage (fail-fast)', async () => {
