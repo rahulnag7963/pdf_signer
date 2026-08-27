@@ -2,10 +2,13 @@
   "name": "pdf_signer",
   "version": "0.1.0",
   "private": true,
+  "engines": {
+    "node": ">=20.19.0 || >=22.13.0"
+  },
   "scripts": {
     "dev": "next dev",
     "build": "next build",
-    "sync-pdf-worker": "node -e \"require('fs').copyFileSync('node_modules/pdfjs-dist/build/pdf.worker.min.mjs','public/pdf.worker.min.mjs')\"",
+    "sync-pdf-worker": "node scripts/sync-pdf-worker.js",
     "predev": "npm run sync-pdf-worker",
     "prebuild": "npm run sync-pdf-worker",
     "start": "next start",
