@@ -1,7 +1,9 @@
-const { copyFileSync, existsSync } = require('fs');
+const { copyFileSync, existsSync, mkdirSync } = require('fs');
 const { join } = require('path');
 
 const dest = join('public', 'pdf.worker.min.mjs');
+
+mkdirSync('public', { recursive: true });
 
 const candidates = [
   'build/pdf.worker.min.mjs',
